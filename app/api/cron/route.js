@@ -1,6 +1,8 @@
 import moment from "moment";
 import { NextResponse } from "next/server";
 
+import { sql } from "@vercel/postgres";
+
 const accountSid = process.env.TWILIO_ACCOUNT_SID;
 const authToken = process.env.TWILIO_AUTH_TOKEN;
 const client = require('twilio')(accountSid, authToken);
@@ -13,6 +15,13 @@ export async function POST(req) {
     if (!weeks) return NextResponse.json({ error: "Missing field" }, { status: 400 });
     if (!origin) return NextResponse.json({ error: "Missing field" }, { status: 400 });
     if (!destination) return NextResponse.json({ error: "Missing field" }, { status: 400 });
+
+    const { rows } = await sql`SELECT * from flight_tracker_cache where origin=${origin} and destination=${destination} ORDER BY id DESC`;
+
+    let prev = 0;
+    if (rows[0]) {
+      prev = rows[0].price;
+    }
 
     let results = [];
 
@@ -45,11 +54,12 @@ export async function POST(req) {
     console.log(cheapest);
 
     client.messages.create({
-        from: `FLIGHTS`,
+        from: `FLUGREKANDA`,
         to: `+447858284939`,
-        body: `${origin}-${destination}: cheapest flight £${cheapest.data.price.raw} on ${moment(cheapest.from).format('DD/MM/YY')}.`
-        // DUB-AEY: cheapest flight £493.54 on 23/08/24.
+        body: `${origin}-${destination}: cheapest flight £${cheapest.data.price.raw} on ${moment(cheapest.from).format('DD/MM/YY')}. ${prev > cheapest.data.price.raw ? "Down" : "Up"} from £${prev.toFixed(2)}.`
     });
+
+    await sql`INSERT INTO flight_tracker_cache (origin,destination,time,price) VALUES (${origin},${destination},${new Date()},${cheapest.data.price.raw})`;
 
     return NextResponse.json({ "message": "Success" }, { status: 200 });
 }
