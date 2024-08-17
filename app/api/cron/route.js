@@ -56,7 +56,7 @@ export async function POST(req) {
     client.messages.create({
         from: `FLUGREKANDA`,
         to: `+447858284939`,
-        body: `${origin}-${destination}: cheapest flight £${cheapest.data.price.raw} on ${moment(cheapest.from).format('DD/MM/YY')}. ${prev > cheapest.data.price.raw ? "Down" : "Up"} from £${prev.toFixed(2)}.`
+        body: `${origin}-${destination}: cheapest flight £${cheapest.data.price.raw.toFixed(2)} on ${moment(cheapest.from).format('DD/MM/YY')}. ${prev > cheapest.data.price.raw ? "Down" : "Up"} from £${prev.toFixed(2)}.`
     });
 
     await sql`INSERT INTO flight_tracker_cache (origin,destination,time,price) VALUES (${origin},${destination},${new Date()},${cheapest.data.price.raw})`;
