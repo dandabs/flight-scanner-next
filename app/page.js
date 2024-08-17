@@ -1,113 +1,172 @@
+"use client";
+
 import Image from "next/image";
+import { useState } from "react";
+
+import moment from 'moment';
 
 export default function Home() {
+  const [weeks, setWeeks] = useState(3);
+  const [origin, setOrigin] = useState("DUB");
+  const [destination, setDestination] = useState("AEY");
+
+  const [results, setResults] = useState([]);
+
+  console.log(results);
+
+  async function doSearch() {
+    console.log(`Performing search`)
+    console.log(`Weeks: ${weeks}`)
+
+    const wA = getFridaysAndMondays(weeks);
+    console.log(wA);
+
+    let localresults = [];
+
+    for (const i in wA) {
+      const w = wA[i];
+
+      localresults = [{
+        from: formatDate(w[0]),
+        to: formatDate(w[1]),
+        origin,
+        destination,
+        loading: true
+      }, ...localresults];
+
+      setResults(localresults);
+
+      const data = await fetch(`/api/cheapest`, {
+        method: "POST",
+        body: JSON.stringify({
+          from: formatDate(w[0]),
+          to: formatDate(w[1]),
+          origin,
+          destination
+        })
+      });
+      const jdata = await data.json();
+
+      localresults = [{
+        from: formatDate(w[0]),
+        to: formatDate(w[1]),
+        origin,
+        destination,
+        loading: false,
+        data: jdata.flight
+      }, ...localresults.filter(r => !(r.from == formatDate(w[0])))];
+
+      setResults(localresults);
+    };
+  }
+
   return (
-    <main className="flex min-h-screen flex-col items-center justify-between p-24">
-      <div className="z-10 max-w-5xl w-full items-center justify-between font-mono text-sm lg:flex">
-        <p className="fixed left-0 top-0 flex w-full justify-center border-b border-gray-300 bg-gradient-to-b from-zinc-200 pb-6 pt-8 backdrop-blur-2xl dark:border-neutral-800 dark:bg-zinc-800/30 dark:from-inherit lg:static lg:w-auto  lg:rounded-xl lg:border lg:bg-gray-200 lg:p-4 lg:dark:bg-zinc-800/30">
-          Get started by editing&nbsp;
-          <code className="font-mono font-bold">app/page.js</code>
-        </p>
-        <div className="fixed bottom-0 left-0 flex h-48 w-full items-end justify-center bg-gradient-to-t from-white via-white dark:from-black dark:via-black lg:static lg:h-auto lg:w-auto lg:bg-none">
-          <a
-            className="pointer-events-none flex place-items-center gap-2 p-8 lg:pointer-events-auto lg:p-0"
-            href="https://vercel.com?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            By{" "}
-            <Image
-              src="/vercel.svg"
-              alt="Vercel Logo"
-              className="dark:invert"
-              width={100}
-              height={24}
-              priority
-            />
-          </a>
-        </div>
+    <main className="flex min-h-screen flex-col p-8">
+      <h1 className="text-2xl font-medium">Flight information</h1>
+      <p className="mb-6">
+        Cheapest: {
+        results.filter((a) => a.loading == false && a.data).sort((a, b) => a.data.price.raw - b.data.price.raw)[0] &&
+        moment(results.filter((a) => a.loading == false && a.data).sort((a, b) => a.data.price.raw - b.data.price.raw)[0].data.legs[0].departure)
+        .format('DD/MM/YYYY')
+        }
+      </p>
+      
+      <div className="flex flex-row justify-center items-center gap-6">
+        <p>Number of weeks:</p>
+        <input type="number" placeholder="3" value={weeks + ""} onChange={(e) => setWeeks(parseInt(e.target.value))} className="border-2 p-1" />
+
+        <p>Origin:</p>
+        <input type="text" placeholder="DUB" value={origin} onChange={(e) => setOrigin(e.target.value)} className="border-2 p-1" />
+
+        <p>Destination:</p>
+        <input type="text" placeholder="AEY" value={destination} onChange={(e) => setDestination(e.target.value)} className="border-2 p-1" />
+
+        <button className="border-2 py-1 px-2 hover:bg-gray-100" onClick={doSearch}>Search</button>
       </div>
 
-      <div className="relative flex place-items-center before:absolute before:h-[300px] before:w-full sm:before:w-[480px] before:-translate-x-1/2 before:rounded-full before:bg-gradient-radial before:from-white before:to-transparent before:blur-2xl before:content-[''] after:absolute after:-z-20 after:h-[180px] after:w-full sm:after:w-[240px] after:translate-x-1/3 after:bg-gradient-conic after:from-sky-200 after:via-blue-200 after:blur-2xl after:content-[''] before:dark:bg-gradient-to-br before:dark:from-transparent before:dark:to-blue-700 before:dark:opacity-10 after:dark:from-sky-900 after:dark:via-[#0141ff] after:dark:opacity-40 before:lg:h-[360px] z-[-1]">
-        <Image
-          className="relative dark:drop-shadow-[0_0_0.3rem_#ffffff70] dark:invert"
-          src="/next.svg"
-          alt="Next.js Logo"
-          width={180}
-          height={37}
-          priority
-        />
-      </div>
+      <div className="mt-6">
+        <table className="w-full">
+          <thead>
+          <tr>
+            <th className="text-start py-2">Week beginning</th>
+            <th className="text-start py-2">Price</th>
+            <th className="text-start py-2">Outbound</th>
+            <th className="text-start py-2">Inbound</th>
+          </tr>
+          </thead>
+          <tbody>
+          { results.filter(r=>r.loading == true).sort((a, b) => a.from.localeCompare(b.from)).map(r => (
+          <tr>
+            <td className="py-2">{moment(r.from).format('DD/MM/YY')}</td>
 
-      <div className="mb-32 grid text-center lg:max-w-5xl lg:w-full lg:mb-0 lg:grid-cols-4 lg:text-left">
-        <a
-          href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Docs{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Find in-depth information about Next.js features and API.
-          </p>
-        </a>
+            <td className="py-2">Loading...</td>
 
-        <a
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800 hover:dark:bg-opacity-30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Learn{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Learn about Next.js in an interactive course with&nbsp;quizzes!
-          </p>
-        </a>
+          </tr>
+          ))}
+          { results.filter(r=>r.loading == false && r.data).sort((a, b) => a.from.localeCompare(b.from)).map(r => (
+          <tr className="text-sm">
+            <td className="py-2">{moment(r.data.legs[0].departure).format('DD/MM/YY')}</td>
 
-        <a
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Templates{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Explore starter templates for Next.js.
-          </p>
-        </a>
+            <td className="py-2">{r.data.price.formatted}</td>
 
-        <a
-          href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Deploy{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50 text-balance`}>
-            Instantly deploy your Next.js site to a shareable URL with Vercel.
-          </p>
-        </a>
+            <td className="py-2">
+              {r.data.legs[0].segments.map(s=>(
+                <>
+                <p><strong>{s.origin.displayCode}-{s.destination.displayCode}</strong> on <strong>{s.marketingCarrier.name}</strong> ({s.marketingCarrier.alternateId}{s.flightNumber})</p>
+                <p>{moment(s.departure).format('DD/MM/YY')} {moment(s.departure).format('HH:mm')} - {moment(s.arrival).format('HH:mm')}</p>
+                </>
+              ))}
+            </td>
+
+            <td className="py-2">
+              {r.data.legs[1].segments.map(s=>(
+                <>
+                <p><strong>{s.origin.displayCode}-{s.destination.displayCode}</strong> on <strong>{s.marketingCarrier.name}</strong> ({s.marketingCarrier.alternateId}{s.flightNumber})</p>
+                <p>{moment(s.departure).format('DD/MM/YY')} {moment(s.departure).format('HH:mm')} - {moment(s.arrival).format('HH:mm')}</p>
+                </>
+              ))}
+            </td>
+          </tr>
+          ))}
+          </tbody>
+        </table>
       </div>
     </main>
   );
+}
+
+function getFridaysAndMondays(weeksAhead) {
+  const result = [];
+  const today = new Date();
+  
+  // Adjust the start date if today is Friday
+  let startOfWeek;
+  if (today.getDay() === 5) { // Check if today is Friday (5 is Friday)
+      // Move to next Friday (7 days ahead)
+      startOfWeek = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
+  } else {
+      startOfWeek = today;
+  }
+
+  for (let i = 0; i < weeksAhead; i++) {
+      const currentWeekStart = new Date(startOfWeek.getTime() + i * 7 * 24 * 60 * 60 * 1000);
+      
+      const daysUntilFriday = (5 - currentWeekStart.getDay() + 7) % 7; // Friday
+      const daysUntilMonday = daysUntilFriday + 2; // Monday
+      
+      const monday = new Date(currentWeekStart.getTime() + daysUntilMonday * 24 * 60 * 60 * 1000);
+      const friday = new Date(currentWeekStart.getTime() + daysUntilFriday * 24 * 60 * 60 * 1000);
+      
+      result.push([friday, monday]);
+  }
+  
+  return result;
+}
+
+function formatDate(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  
+  return `${year}-${month}-${day}`;
 }
